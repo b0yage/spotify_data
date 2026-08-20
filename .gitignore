@@ -7,3 +7,5 @@ __pycache__/
 coding/clean-facility-505402-v2-b241c73eaa5b.json
 spotify_json/
 C:\Users\chris\OneDrive\Desktop\odysseus\spotify_data\spotify_json
+.env.local
+.env*
