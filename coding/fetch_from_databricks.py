@@ -1,21 +1,4 @@
-"""
-Export the Databricks Delta tables to JSON for the Next.js dashboard.
 
-Runs locally, not in Databricks. Reads workspace.spotify via the SQL
-Statement Execution API and writes one JSON file per table into
-web/data/, where the app imports them at build time.
-
-This is a batch step, not a live query: Databricks is never in the
-request path, so a cold or quota-limited warehouse cannot take the
-dashboard down. Re-run after each pipeline refresh, then commit and
-redeploy.
-
-    cd coding
-    python fetch_from_databricks.py
-
-Requires DATABRICKS_HOST, DATABRICKS_TOKEN and DATABRICKS_WAREHOUSE_ID
-in coding/.env.local.
-"""
 
 import os
 import json
@@ -26,11 +9,7 @@ from databricks.sdk import WorkspaceClient
 from dotenv import load_dotenv
 
 
-# The Statement Execution API returns every cell as a string, including
-# numbers and booleans. Left alone that means the dashboard receives
-# "16336" instead of 16336, so arithmetic and lookups silently fail.
-# Restore real JSON types at the boundary using the column types the
-# API reports alongside the data.
+
 
 NUMERIC_TYPES = {"LONG", "INT", "SHORT", "BYTE", "DOUBLE", "FLOAT", "DECIMAL"}
 
@@ -53,33 +32,6 @@ OUT = Path("../web/data")
 OUT.mkdir(parents=True, exist_ok=True)
 
 
-# ---------------------------------------------------------------------
-# Session sampling
-#
-# The full session_plays table is the entire play history and exceeds
-# the Statement Execution API's inline byte limit, so the export ships
-# detail for a subset of sessions.
-#
-# That subset is a stratified sample rather than a single top-N slice.
-# Taking only the longest sessions would bias the export toward one
-# corner of the data — and, since long sessions contain the most plays,
-# also produce the largest possible file. Four strata of 50 each cover
-# different listening behaviour:
-#
-#   recent          what listening looks like now
-#   earliest        what it looked like at the start of the history
-#   longest         the extended sessions
-#   most deliberate the sessions where tracks were actively picked
-#
-# "Most deliberate" takes the slot a "shortest sessions" stratum would
-# otherwise fill: a one-play session has no tracklist worth opening,
-# while high-intent sessions are where curating behaviour is visible.
-# The real_plays floor stops tiny sessions from topping the intent
-# ranking on a single hand-picked track.
-#
-# UNION DISTINCT dedupes, since a session can qualify on more than one
-# criterion — so the final count is at or below STRATUM_SIZE * 4.
-# ---------------------------------------------------------------------
 
 STRATUM_SIZE = 50
 MIN_REAL_PLAYS_FOR_INTENT = 5
@@ -105,15 +57,14 @@ SAMPLED_SESSIONS = " UNION DISTINCT ".join([
 ])
 
 
-# Tables not listed here are exported with SELECT *.
+
 QUERIES = {
-    # Every session, so the scatter plot shows the full distribution.
+
     "sessions": """
         SELECT * FROM workspace.spotify.sessions
         ORDER BY started_at
     """,
-    # Detail for the sampled sessions only, and only the columns the UI
-    # renders — the full table has seventeen.
+
     "session_plays": f"""
         SELECT session_id, ts, song_name, artist,
                seconds_played, play_outcome, spotify_track_uri
@@ -134,6 +85,8 @@ TABLES = [
     "session_type_summary",
     "session_type_by_month",
     "session_quadrants",
+    "artist_tracks",
+    "tracks_by_hour",
 ]
 
 
