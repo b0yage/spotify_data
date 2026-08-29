@@ -1,6 +1,10 @@
 # Spotify Streaming Data Pipeline
 
+**Live: [spotify-data-ebon.vercel.app](https://spotify-data-ebon.vercel.app/)**
+
 A public-safe data engineering portfolio project built from personal Spotify Extended Streaming History. The project demonstrates an end-to-end analytics workflow: ingest source JSON, model a cleaned analytics table in BigQuery, build behavioural metrics as Delta tables in Databricks, and serve them through a Next.js dashboard.
+
+Actively developed — definitions get revised when the data disagrees with them. The session thresholds were rewritten once already and the completion rule twice; both changes are documented below rather than quietly folded in. See [Current status](#current-status) for where things stand.
 
 ## Contents
 
@@ -308,13 +312,23 @@ The exported JSON in `web/data/` is aggregated results rather than raw history, 
 
 - BigQuery raw table: complete
 - BigQuery cleaned table: complete
-- Databricks federation and Delta transform layer: complete
+- Databricks federation and Delta transform layer: complete — seventeen tables
 - Batch export to the app: complete
 - Next.js dashboard: complete
-- Vercel deployment: in progress
+- Vercel deployment: live at [spotify-data-ebon.vercel.app](https://spotify-data-ebon.vercel.app/)
+
+Deployed from a private GitHub repo with the Vercel root directory set to `web`, since the Next.js app is a subdirectory rather than the repository root. Pushes to `master` redeploy automatically — but only when files under `web/` change, so a refresh has to include the regenerated `web/data/*.json` or the site keeps serving the previous numbers.
+
+The code stays private; the dashboard is public. Nothing in the committed JSON is raw history — it is aggregated results, and `session_plays` ships only a sampled subset.
 
 ## Next steps
+
+**Catalog enrichment.** The export carries no track duration, so completion is currently inferred from `reason_end = 'trackdone'` — which misses a track skipped at 2:50 of 3:00, functionally a full listen. Pulling `/v1/tracks` and `/v1/artists` from the Spotify Web API would give real durations, turning completion into an exact percentage, and add genre as an axis the history has never had. Planned as a Databricks notebook using `dbutils.secrets` so the client credentials stay out of the committed `.ipynb`.
+
+**Smaller items.**
 
 - Verify the `shuffle` field in the early export. `shuffle_share` sits near 100% through 2018–2019 and then becomes volatile, which looks more like nulls being coerced to true in the cleaning layer than a real change in behaviour.
 - Add a rolling average or coarser grain to the monthly charts. At ~100 months, three series on one axis reads as noise even where the underlying trend is real.
 - Weight `sessions_by_start_hour` by plays as well as by session, so the two readings of "what happens at 7am" can be compared.
+- Replace the scaffold metadata in `web/app/layout.tsx` — the page still titles itself "Create Next App".
+- Decide how `top_tracks` should group. Grouping by `spotify_track_uri` is technically correct but splits a track that exists as both a single and an album release, so the same song can appear twice with different counts.
