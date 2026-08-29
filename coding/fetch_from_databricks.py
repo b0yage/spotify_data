@@ -87,6 +87,11 @@ TABLES = [
     "session_quadrants",
     "artist_tracks",
     "tracks_by_hour",
+    "discovery_by_month",
+    "outcomes_by_month",
+    "streaks",
+    "artist_concentration",
+    "sessions_by_start_hour",
 ]
 
 
